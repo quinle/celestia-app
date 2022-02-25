@@ -75,34 +75,34 @@ func TestNextPowerOf2(t *testing.T) {
 	}
 }
 
-func TestPowerOf2 (t *testing.T) {
+func TestPowerOf2(t *testing.T) {
 	type test struct {
-		input uint64
+		input    uint64
 		expected bool
 	}
-	tests := []test {
+	tests := []test{
 		{
-			input: 1,
+			input:    1,
 			expected: true,
 		},
 		{
-			input: 2,
+			input:    2,
 			expected: true,
 		},
 		{
-			input: 256,
+			input:    256,
 			expected: true,
 		},
 		{
-			input: 3,
+			input:    3,
 			expected: false,
 		},
 		{
-			input: 79,
+			input:    79,
 			expected: false,
 		},
 		{
-			input: 0,
+			input:    0,
 			expected: false,
 		},
 	}

@@ -15,6 +15,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/pkg/consts"
+	"github.com/tendermint/tendermint/pkg/da"
 	core "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
@@ -26,10 +27,10 @@ func TestMessageInclusionCheck(t *testing.T) {
 
 	encConf := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
 
-	firstValidPFM, msg1 := genRandMsgPayForMessage(t, signer)
-	secondValidPFM, msg2 := genRandMsgPayForMessage(t, signer)
+	firstValidPFM, msg1 := genRandMsgPayForMessage(t, signer, 4)
+	secondValidPFM, msg2 := genRandMsgPayForMessage(t, signer, 4)
 
-	invalidCommitmentPFM, msg3 := genRandMsgPayForMessage(t, signer)
+	invalidCommitmentPFM, msg3 := genRandMsgPayForMessage(t, signer, 4)
 	invalidCommitmentPFM.MessageShareCommitment = tmrand.Bytes(32)
 
 	// block with all messages included
@@ -88,6 +89,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 				},
 			},
 		},
+		OriginalSquareSize: 4,
 	}
 
 	// block with all messages included
@@ -107,6 +109,7 @@ func TestMessageInclusionCheck(t *testing.T) {
 				},
 			},
 		},
+		OriginalSquareSize: 4,
 	}
 
 	type test struct {
@@ -142,13 +145,23 @@ func TestMessageInclusionCheck(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		dataSquare, _, err := app.WriteSquare(
+			encConf.TxConfig,
+			tt.input.BlockData.OriginalSquareSize,
+			tt.input.BlockData,
+		)
+		require.NoError(t, err)
+		eds, err := da.ExtendShares(tt.input.BlockData.OriginalSquareSize, dataSquare)
+		require.NoError(t, err)
+		dah := da.NewDataAvailabilityHeader(eds)
+		tt.input.Header.DataHash = dah.Hash()
 		res := testApp.ProcessProposal(tt.input)
 		assert.Equal(t, tt.expectedResult, res.Result)
 	}
 
 }
 
-func genRandMsgPayForMessage(t *testing.T, signer *types.KeyringSigner) (*types.MsgPayForMessage, []byte) {
+func genRandMsgPayForMessage(t *testing.T, signer *types.KeyringSigner, squareSize uint64) (*types.MsgPayForMessage, []byte) {
 	ns := make([]byte, consts.NamespaceSize)
 	_, err := rand.Read(ns)
 	require.NoError(t, err)
@@ -157,7 +170,7 @@ func genRandMsgPayForMessage(t *testing.T, signer *types.KeyringSigner) (*types.
 	_, err = rand.Read(message)
 	require.NoError(t, err)
 
-	commit, err := types.CreateCommitment(consts.MaxSquareSize, ns, message)
+	commit, err := types.CreateCommitment(squareSize, ns, message)
 	require.NoError(t, err)
 
 	pfm := types.MsgPayForMessage{
